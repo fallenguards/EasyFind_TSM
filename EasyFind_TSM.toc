@@ -1,0 +1,14 @@
+## Interface: 120105, 120100, 50504, 20506, 11509
+## Title: EasyFind [TSM]
+## Notes: TradeSkillMaster's groups, prices and item counts in EasyFind's search bar: type @tsm for your groups, hover an item for its price and how many you own. Requires TradeSkillMaster.
+## Author: justawower
+## Version: 0.1.0
+## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
+## Group: EasyFind
+## Category: UI
+## Dependencies: EasyFind, TradeSkillMaster
+## SavedVariables: EasyFindTSMDB
+## DefaultState: enabled
+
+Locales/enUS.lua
+TSM.lua
