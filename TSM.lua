@@ -239,6 +239,12 @@ end
 
 local KIND_ORDER = { group = 1, queue = 2, item = 3 }
 
+-- Groups lead, then the queue, then items, each by name.
+local function KindThenName(a, b)
+    if a.kind ~= b.kind then return KIND_ORDER[a.kind] < KIND_ORDER[b.kind] end
+    return a.name < b.name
+end
+
 local function Rows()
     if not (S.ready and Loaded()) then return {} end
     local out = {}
@@ -246,11 +252,7 @@ local function Rows()
     for i = 1, #paths do GroupRow(paths[i], out) end
     if DB().queue ~= false then QueueRows(out) end
     for i = 1, #paths do ItemRows(paths[i], out) end
-    -- Groups lead, then the queue, then items, each by name.
-    tsort(out, function(a, b)
-        if a.kind ~= b.kind then return KIND_ORDER[a.kind] < KIND_ORDER[b.kind] end
-        return a.name < b.name
-    end)
+    tsort(out, KindThenName)
     return out
 end
 
