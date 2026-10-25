@@ -207,7 +207,7 @@ local function GroupRow(path, out)
     words[#words + 1] = "group"
     local count = #items
     out[#out + 1] = {
-        name = TSM_API.FormatGroupPath(path), kind = "group", path = path, leaf = leaf,
+        name = TSM_API.FormatGroupPath(path), kind = "group", groupPath = path, leaf = leaf,
         icon = items[1] and ItemIcon(items[1]) or nil, keywords = words,
         searchCommandDesc = sformat(count == 1 and L["GROUP_ITEM_FMT"] or L["GROUP_ITEMS_FMT"], count),
     }
@@ -222,7 +222,7 @@ local function ItemRows(path, out)
     for i = 1, #items do
         local s = items[i]
         out[#out + 1] = { name = ItemName(s), kind = "item", itemString = s, itemID = ItemID(s),
-                          icon = ItemIcon(s), path = path, keywords = words, searchCommandDesc = group }
+                          icon = ItemIcon(s), groupPath = path, keywords = words, searchCommandDesc = group }
     end
 end
 
@@ -282,11 +282,11 @@ end
 -- Alt lists its group.
 local function Select(row)
     if not S.ready then return end
-    if row.kind == "group" then return ShowGroup(row.path) end
+    if row.kind == "group" then return ShowGroup(row.groupPath) end
     local link = TSM_API.GetItemLink(row.itemString)
     if IsControlKeyDown() then return DressUpItemLink(link) end
     if IsAltKeyDown() then
-        local path = row.path or TSM_API.GetGroupPathByItem(row.itemString)
+        local path = row.groupPath or TSM_API.GetGroupPathByItem(row.itemString)
         if path then ShowGroup(path) end
         return
     end
@@ -295,7 +295,7 @@ end
 
 local function Hint(row)
     if row.kind == "group" then return L["HINT_LIST_ITEMS"] end
-    local path = row.path or (S.ready and TSM_API.GetGroupPathByItem(row.itemString))
+    local path = row.groupPath or (S.ready and TSM_API.GetGroupPathByItem(row.itemString))
     return { click = L["HINT_LINK"], ctrl = L["HINT_DRESS"], alt = path and L["HINT_GROUP"] or nil }
 end
 
