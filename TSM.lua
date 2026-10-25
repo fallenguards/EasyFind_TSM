@@ -396,9 +396,13 @@ local function Option(key, label, tip)
 end
 
 local function FilterOptions()
-    return { Option("prices", L["OPT_PRICES"], L["OPT_PRICES_TIP"]),
-             Option("counts", L["OPT_COUNTS"], L["OPT_COUNTS_TIP"]),
-             Option("queue", L["OPT_QUEUE"], L["OPT_QUEUE_TIP"]) }
+    local opts = { Option("counts", L["OPT_COUNTS"], L["OPT_COUNTS_TIP"]),
+                   Option("queue", L["OPT_QUEUE"], L["OPT_QUEUE_TIP"]) }
+    -- Row prices need EasyFind's row decorator; no switch that does nothing.
+    if type(API.RegisterRowDecorator) == "function" then
+        table.insert(opts, 1, Option("prices", L["OPT_PRICES"], L["OPT_PRICES_TIP"]))
+    end
+    return opts
 end
 
 local function QueueCount()
