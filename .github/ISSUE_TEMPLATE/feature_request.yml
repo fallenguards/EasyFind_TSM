@@ -1,0 +1,20 @@
+name: Feature Request
+description: Something you would like it to do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This tracker is for **EasyFind: TSM Extension** (folder `EasyFind_TSM`), the EasyFind extension for TradeSkillMaster.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: What you want to find or see from TradeSkillMaster in EasyFind.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why?
+      description: What you do today instead, and what this would save you.

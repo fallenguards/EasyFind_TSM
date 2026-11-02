@@ -1,0 +1,39 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This tracker is for **EasyFind: TSM Extension** (folder `EasyFind_TSM`), the EasyFind extension for TradeSkillMaster.
+  - type: textarea
+    id: report
+    attributes:
+      label: What happened?
+      description: What you saw and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to make it happen
+      description: What you searched for, which row you clicked or hovered, and the price source you picked.
+      placeholder: |
+        1. Type "@tsm" in EasyFind
+        2. Hover an item in one of your groups
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: EasyFind, TradeSkillMaster and this extension, as the AddOns list shows them, and the game client (Retail, Mists Classic, TBC Anniversary, Classic Era).
+      placeholder: EasyFind 4.1.0, TradeSkillMaster 4.14.78, EasyFind [TSM] 1.0.0, Retail
+    validations:
+      required: true
+  - type: textarea
+    id: errors
+    attributes:
+      label: Errors
+      description: Any Lua error text (BugSack or the game's error window). Paste it as is.
