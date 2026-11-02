@@ -7,6 +7,9 @@ local API = EasyFind and EasyFind.API
 if not (API and API.VERSION == 1) then return end
 
 local L = ns.L
+-- Loaded beside TradeSkillMaster (OptionalDeps), nothing without it.
+local IsAddOnLoaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
+if not (IsAddOnLoaded and IsAddOnLoaded("TradeSkillMaster")) then return end
 local KEY = "tsm"
 local TAG = "EasyFind_TSM"              -- our name in TSM's callback registries
 local ICON = "Interface\\AddOns\\EasyFind_TSM\\icon"

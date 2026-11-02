@@ -6,7 +6,8 @@
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
 ## Category: UI
-## Dependencies: EasyFind, TradeSkillMaster
+## Dependencies: EasyFind
+## OptionalDeps: TradeSkillMaster
 ## SavedVariables: EasyFindTSMDB
 ## DefaultState: enabled
 
