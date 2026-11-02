@@ -1,6 +1,10 @@
 *.zip
 release.conf
 release.sh
+ziptest.sh
+cf_upload.py
+process_changelog.py
+__pycache__/
 dev/
 target/
 .claude/
