@@ -1,16 +1,23 @@
--- TradeSkillMaster's groups, prices and item counts in EasyFind: a group
--- or an item in one found by name, the crafts queued in TSM, the chosen
--- TSM price and owned counts on item rows. TSM is only read: its groups,
--- settings and data are never written or copied.
+-- TradeSkillMaster's groups, queued crafts, prices and owned counts in
+-- EasyFind, read through TSM_API; nothing of TSM's is written or copied.
 local _, ns = ...
 local API = EasyFind and EasyFind.API
 if not (API and API.VERSION == 1) then return end
 
 local L = ns.L
+local sformat, tconcat, tonumber, tsort = string.format, table.concat, tonumber, table.sort
+
+local function Print(text)
+    print(sformat("|cff66ccff%s:|r %s", L["EXT_NAME"], text))
+end
+
 -- Loaded beside TradeSkillMaster (OptionalDeps), nothing without it.
 local IsAddOnLoaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
 if not (IsAddOnLoaded and IsAddOnLoaded("TradeSkillMaster")) then return end
+-- Prices on EasyFind's own item rows (RegisterRowDecorator) came in MINOR 4.
+if (API.MINOR or 0) < 4 then return Print(L["NEEDS_EASYFIND"]) end
 local KEY = "tsm"
+local CATEGORY = L["CATEGORY"]
 local TAG = "EasyFind_TSM"              -- our name in TSM's callback registries
 local ICON = "Interface\\AddOns\\EasyFind_TSM\\icon"
 local DEFAULT_SOURCE = "dbmarket"
@@ -24,12 +31,10 @@ local SOURCES = { "dbmarket", "dbminbuyout", "dbhistorical", "dbrecent", "dbregi
 
 local C_Item, C_Timer = C_Item, C_Timer
 local IsControlKeyDown, IsAltKeyDown = IsControlKeyDown, IsAltKeyDown
-local sformat, tconcat, tonumber, tsort = string.format, table.concat, tonumber, table.sort
 
 -- Module state in one table (upvalue limit).
 local S = {
     ready = false,
-    hooked = false,       -- EasyFind's row decoration took our price
     sourceLabel = "",
     prices = {},          -- itemString -> copper, false for none
     strings = {},         -- link or itemID -> TSM item string, false for none
@@ -40,10 +45,6 @@ local scratch = {}
 local function DB()
     EasyFindTSMDB = EasyFindTSMDB or {}
     return EasyFindTSMDB
-end
-
-local function Print(text)
-    print(sformat("|cff66ccff%s:|r %s", L["EXT_NAME"], text))
 end
 
 -- ==== TSM ===================================================================
@@ -124,7 +125,7 @@ end
 local function Invalidate()
     wipe(S.prices)
     wipe(S.strings)
-    if S.hooked and API.RefreshRowDecorations then API.RefreshRowDecorations() end
+    API.RefreshRowDecorations()
 end
 
 local function LeafName(path)
@@ -272,13 +273,15 @@ local function ShowGroup(path)
     API.ShowScope(KEY, LeafName(path))
 end
 
+-- 12.1 moved the chat calls to ChatFrameUtil; older clients keep the globals.
 local function InsertChatLink(link)
-    local active = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
-    if active and active:IsShown() then
-        active:Insert(link)
-    elseif not (ChatEdit_InsertLink and ChatEdit_InsertLink(link)) and ChatFrame_OpenChat then
-        ChatFrame_OpenChat(link)
-    end
+    local getActive = (ChatFrameUtil and ChatFrameUtil.GetActiveWindow) or ChatEdit_GetActiveWindow
+    local active = getActive and getActive()
+    if active and active:IsShown() then return active:Insert(link) end
+    local insert = (ChatFrameUtil and ChatFrameUtil.InsertLink) or ChatEdit_InsertLink
+    if insert and insert(link) then return end
+    local open = (ChatFrameUtil and ChatFrameUtil.OpenChat) or ChatFrame_OpenChat
+    if open then open(link) end
 end
 
 -- A group lists its items; an item links in chat, Ctrl tries it on,
@@ -329,6 +332,12 @@ end
 
 -- ==== EasyFind's own item rows ==============================================
 
+-- The decorator takes our rows too: their tooltip and menu already carry
+-- these lines, so only the price at the row's right is added there.
+local function Ours(row)
+    return row.category == CATEGORY
+end
+
 local function RowText(row, link)
     if not S.ready or DB().prices == false then return nil end
     local s = ItemString(link, row.itemID)
@@ -336,24 +345,22 @@ local function RowText(row, link)
 end
 
 local function RowTooltip(row, link, tt)
-    local s = S.ready and ItemString(link, row.itemID)
+    local s = S.ready and not Ours(row) and ItemString(link, row.itemID)
     if not s then return end
     AddPriceLine(tt, s)
     if DB().counts ~= false then AddCountLines(tt, s) end
 end
 
 local function RowMenu(row, link)
-    local s = S.ready and ItemString(link, row.itemID)
+    local s = S.ready and not Ours(row) and ItemString(link, row.itemID)
     return s and GroupMenu(TSM_API.GetGroupPathByItem(s)) or nil
 end
 
--- EasyFind's row decoration, on builds that have it: the price at the
--- right of every item row, the counts under its tooltip.
+-- Every item row in EasyFind: the price at its right, the counts under
+-- its tooltip, its TSM group on its menu.
 local function HookRows()
-    if type(API.RegisterRowDecorator) ~= "function" then return end
     API.RegisterRowDecorator({ id = KEY, slot = "price", label = L["DECOR_LABEL"],
                                text = RowText, tooltip = RowTooltip, menu = RowMenu })
-    S.hooked = true
 end
 
 -- ==== settings ==============================================================
@@ -399,13 +406,9 @@ local function Option(key, label, tip)
 end
 
 local function FilterOptions()
-    local opts = { Option("counts", L["OPT_COUNTS"], L["OPT_COUNTS_TIP"]),
-                   Option("queue", L["OPT_QUEUE"], L["OPT_QUEUE_TIP"]) }
-    -- Row prices need EasyFind's row decorator; no switch that does nothing.
-    if type(API.RegisterRowDecorator) == "function" then
-        table.insert(opts, 1, Option("prices", L["OPT_PRICES"], L["OPT_PRICES_TIP"]))
-    end
-    return opts
+    return { Option("prices", L["OPT_PRICES"], L["OPT_PRICES_TIP"]),
+             Option("counts", L["OPT_COUNTS"], L["OPT_COUNTS_TIP"]),
+             Option("queue", L["OPT_QUEUE"], L["OPT_QUEUE_TIP"]) }
 end
 
 local function QueueCount()
@@ -450,7 +453,7 @@ API.RegisterExtension({
 API.RegisterSearchProvider({
     key = KEY,
     label = L["PROVIDER_LABEL"],
-    category = L["CATEGORY"],
+    category = CATEGORY,
     extension = KEY,
     words = { "tsm", "group", "groups", "craft", "queue" },
     aliases = { "tsm" },
