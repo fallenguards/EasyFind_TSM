@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        This tracker is for **EasyFind: TSM Extension** (folder `EasyFind_TSM`), the EasyFind extension for TradeSkillMaster.
+        This tracker is for **EasyFind: TradeSkillMaster Extension** (folder `EasyFind_TSM`), the EasyFind extension for TradeSkillMaster.
   - type: textarea
     id: report
     attributes:
