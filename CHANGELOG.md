@@ -1,9 +1,11 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## [1.0.0] - 2026-11-01
 
-- Group search: TradeSkillMaster's groups and the items in them, found by name in EasyFind; `@tsm` lists the groups.
-- Prices: the TSM price source you pick, in every TSM item's tooltip, with how many you own across characters, guild banks and the warband bank.
-- Crafting queue: the crafts queued in TSM as rows, their materials and what you have in the tooltip.
-- Click: a group lists its items; an item links in chat, Ctrl-click tries it on, Alt-click lists its group.
-- Filter toggles: Prices on item rows, Owned counts in tooltips, Crafting queue rows. Price source in Options > Extensions and `/eftsm source`.
+- Search your TradeSkillMaster groups and the items in them by name from EasyFind's search bar. `@tsm` lists your groups and crafting queue.
+- Every item in EasyFind's results shows the TSM price you pick, not only TSM's own items.
+- Hover an item for its price and how many you own across your characters, guild banks and the warband bank.
+- Your crafting queue in the search: type `craft` for each craft with its count and materials.
+- Click a group to list its items; click an item to link it in chat, Ctrl+click to try it on, Alt+click to list its group.
+- Pick the price on the extension's settings page or with `/eftsm source`, any TSM custom price included.
+- Retail, Mists Classic, TBC Anniversary and Classic Era.
