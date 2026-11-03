@@ -49,7 +49,7 @@ function tests.registers_extensionProviderAndDecorator()
     for _, fn in ipairs({ "rows", "select", "tooltip", "hint", "menu", "browse" }) do
         H.assertEq(type(p[fn]), "function", "provider." .. fn)
     end
-    H.assertEq(#p.options, 3, "three switches on its filter row")
+    H.assertEq(#p.options, 2, "two switches on its filter row")
     local d = w:decorator()
     H.assertTrue(d and d.id == "tsm" and d.slot == "price", "the row decorator, price slot")
     H.assertEq(table.concat(w.api.bad, "; "), "", "every field one EasyFind knows, of its type")
@@ -61,7 +61,7 @@ function tests.settingsPage_builds()
     w:extension().settings({}, kit)
     local kinds = {}
     for _, c in ipairs(kit.made) do kinds[#kinds + 1] = c.kind end
-    H.assertEq(table.concat(kinds, ","), "title,choice,checkbox,checkbox,checkbox", "title, source, three switches")
+    H.assertEq(table.concat(kinds, ","), "title,choice,checkbox,checkbox", "title, source, two switches")
 end
 
 function tests.noEasyFind_nothingRegistered_noError()
@@ -87,7 +87,7 @@ function tests.olderEasyFind_saysToUpdate_registersNothing()
 end
 
 function tests.tsmLacksAFunction_saysSo_staysOff()
-    local w = H.load({ strip = { "GetWarbankQuantity" } }):login(120)
+    local w = H.load({ strip = { "CraftingQueueIterator" } }):login(120)
     H.assertTrue(Printed(w, "not available"), "one line in chat")
     H.assertEq(#w.api.decorators, 0, "no row prices")
     H.assertEq(#w:rows(), 0, "no rows")

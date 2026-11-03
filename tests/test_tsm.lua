@@ -160,30 +160,19 @@ end
 
 -- ==== tooltips ==============================================================
 
-function tests.itemTooltip_priceAndOwnedCounts()
+-- TSM writes its prices and counts on every item tooltip: none of ours.
+function tests.itemTooltip_theItemAlone_TSMAddsItsOwnLines()
     local w = H.load():login()
     local tt = H.Tooltip()
     H.assertTrue(w:provider().tooltip(w:row("Linen Cloth"), tt), "shown")
-    H.assertTrue(tt.link:find("Hitem:2589", 1, true), "the item's own tooltip first")
-    H.assertTrue(tt:Has("AuctionDB - Market Value: 120c"), "the chosen price")
-    H.assertTrue(tt:Has("You have 172"), "every place counted")
-    H.assertTrue(tt:Has("Bags 20, Bank 5, Auctions 40"), "this character, empty places left out")
-    H.assertTrue(tt:Has("Other characters 7, Guild bank 100"), "the rest")
-end
-
-function tests.countsSwitchOff_priceOnly()
-    local w = H.load({ saved = { counts = false } }):login()
-    local tt = H.Tooltip()
-    w:provider().tooltip(w:row("Linen Cloth"), tt)
-    H.assertTrue(tt:Has("120c"), "the price stays")
-    H.assertNil(tt:Has("You have"), "no counts")
+    H.assertTrue(tt.link:find("Hitem:2589", 1, true), "the item's own tooltip")
+    H.assertEq(#tt.lines, 1, "no price or count lines of ours")
 end
 
 function tests.queueTooltip_materialsHaveOverNeed()
     local w = H.load():login()
     local tt = H.Tooltip()
     w:provider().tooltip(w:row("Copper Bar"), tt)
-    H.assertTrue(tt:Has("AuctionDB - Market Value: No price"), "no price for it")
     local head = tt:Has("Materials")
     H.assertTrue(head, "a materials list")
     H.assertEq(tt.lines[head + 1], "Copper Ore  4/5", "have over need for the whole entry")
@@ -211,13 +200,12 @@ function tests.decorator_pricesEasyFindsItemRows()
     H.assertNil(d.text(BagRow(2589), "item:2589"), "the switch turns them off")
 end
 
-function tests.decorator_tooltipAndMenu_onEasyFindsRows()
+function tests.decorator_noTooltipLines_menuShowsTheGroup()
     local w = H.load():login()
     local d = w:decorator()
     local tt = H.Tooltip()
     d.tooltip(BagRow(2589, LINEN_LINK), LINEN_LINK, tt)
-    H.assertTrue(tt:Has("AuctionDB - Market Value: 120c"), "the price")
-    H.assertTrue(tt:Has("You have 172"), "the counts")
+    H.assertEq(#tt.lines, 0, "TSM's own tooltip lines are there already")
     local menu = d.menu(BagRow(2589), "item:2589")
     H.assertEq(menu and menu[1].label, "Show its TSM group", "an item in a group")
     menu[1].onClick()
@@ -249,20 +237,20 @@ function tests.noMarketPrice_vendorPriceDimmed_tooltipSaysSo()
     H.assertEq(select("#", d.text(BagRow(2770), "item:2770")), 1, "the chosen price as it was")
     local tt = H.Tooltip()
     d.tooltip(BagRow(2589), "item:2589", tt)
-    H.assertTrue(tt:Has("AuctionDB - Market Value: No price"), "the chosen price has none")
-    H.assertTrue(tt:Has("Vendor Sell Price: 13c, shown instead"), "the one on the row")
+    H.assertEq(tt.lines[1], "No AuctionDB - Market Value here, so the row shows the Vendor Sell Price.",
+        "why the row's price is dim")
+    H.assertEq(#tt.lines, 1)
     H.assertNil(d.text(BagRow(2840), "item:2840"), "neither: nothing")
 end
 
-function tests.vendorPriceChosen_oneLine()
+function tests.vendorPriceChosen_notDimmed_noLine()
     local w = H.load():login()
     w:slash("source vendorsell")
     local d = w:decorator()
     H.assertEq(select("#", d.text(BagRow(2589), "item:2589")), 1, "not dimmed")
     local tt = H.Tooltip()
     d.tooltip(BagRow(2770), "item:2770", tt)
-    H.assertTrue(tt:Has("Vendor Sell Price: No price"))
-    H.assertNil(tt:Has("shown instead"))
+    H.assertEq(#tt.lines, 0)
 end
 
 function tests.subtext_itsTSMGroup_onEasyFindsRows()
@@ -300,9 +288,7 @@ function tests.slashSource_takesAKeyOrACustomPrice()
     H.assertEq(w.env.EasyFindTSMDB.source, "dbminbuyout", "saved")
     w:slash("source max(dbminbuyout, vendorsell)")
     H.assertTrue(w.printed[#w.printed]:find("Price source: max(dbminbuyout, vendorsell).", 1, true), "a custom price shows itself")
-    local tt = H.Tooltip()
-    w:provider().tooltip(w:row("Linen Cloth"), tt)
-    H.assertTrue(tt:Has("max(dbminbuyout, vendorsell): 99c"), "its label on the price line")
+    H.assertEq(d.text(BagRow(2589), "item:2589"), 99, "its value on the rows")
 end
 
 function tests.slashSource_badPrice_saysWhy_keepsTheOld()
@@ -347,12 +333,13 @@ end
 
 function tests.switches_onUnlessFalse()
     local w = H.load():login()
-    local o = Option(w, "Owned counts in tooltips")
+    local o = Option(w, "Crafting queue rows")
     H.assertTrue(o.get(), "on by default")
     o.set(false)
-    H.assertEq(w.env.EasyFindTSMDB.counts, false)
+    H.assertEq(w.env.EasyFindTSMDB.queue, false)
     o.set(true)
-    H.assertNil(w.env.EasyFindTSMDB.counts, "on is nil: the saved table stays small")
+    H.assertNil(w.env.EasyFindTSMDB.queue, "on is nil: the saved table stays small")
+    H.assertNil(Option(w, "Owned counts in tooltips"), "TSM's own tooltip has the counts")
 end
 
 function tests.groupChanges_oneRebuild()

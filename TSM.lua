@@ -1,11 +1,11 @@
--- TradeSkillMaster's groups, queued crafts, prices and owned counts in
--- EasyFind, read through TSM_API; nothing of TSM's is written or copied.
+-- TradeSkillMaster's groups, queued crafts and prices in EasyFind, read
+-- through TSM_API; nothing of TSM's is written or copied.
 local _, ns = ...
 local API = EasyFind and EasyFind.API
 if not (API and API.VERSION == 1) then return end
 
 local L = ns.L
-local sformat, tconcat, tonumber, tsort = string.format, table.concat, tonumber, table.sort
+local sformat, tonumber, tsort = string.format, tonumber, table.sort
 
 local function Print(text)
     print(sformat("|cff66ccff%s:|r %s", L["EXT_NAME"], text))
@@ -46,7 +46,6 @@ local S = {
     strings = {},         -- link or itemID -> TSM item string, false for none
     refreshPending = false,
 }
-local scratch = {}
 
 local function DB()
     EasyFindTSMDB = EasyFindTSMDB or {}
@@ -58,8 +57,7 @@ end
 local NEED = { "GetGroupPaths", "FormatGroupPath", "SplitGroupPath", "GetGroupPathByItem", "GetGroupItems",
                "RegisterGroupItemCallback", "GetActiveProfile", "GetPriceSourceKeys", "GetPriceSourceDescription",
                "IsCustomPriceValid", "GetCustomPriceValue", "FormatMoneyString", "ToItemString", "GetItemName",
-               "GetItemLink", "GetBagQuantity", "GetBankQuantity", "GetMailQuantity", "GetPlayerTotals",
-               "GetGuildTotal", "GetWarbankQuantity", "CraftingQueueIterator", "GetCraftingQueueItemMaterials" }
+               "GetItemLink", "GetPlayerTotals", "CraftingQueueIterator", "GetCraftingQueueItemMaterials" }
 
 local function Bind()
     local T = TSM_API
@@ -168,41 +166,11 @@ end
 
 -- ==== tooltip lines =========================================================
 
-local function AddPriceLine(tt, itemString)
-    local value, fallback = Price(itemString)
-    if fallback then
-        tt:AddLine(S.sourceLabel .. ": " .. L["NO_PRICE"], 1, 1, 1)
-        tt:AddLine(sformat(L["FALLBACK_FMT"], S.fallbackLabel, TSM_API.FormatMoneyString(value)), 1, 1, 1)
-        return
-    end
-    tt:AddLine(S.sourceLabel .. ": " .. (value and TSM_API.FormatMoneyString(value) or L["NO_PRICE"]), 1, 1, 1)
-end
-
-local function Part(parts, label, n)
-    if n > 0 then parts[#parts + 1] = label .. " " .. n end
-end
-
--- Owned counts: this character, other characters, guild banks and the
--- warband bank, zero parts left out.
-local function AddCountLines(tt, itemString)
-    local player, alts, auctions, altAuctions = TSM_API.GetPlayerTotals(itemString)
-    local guild = TSM_API.GetGuildTotal(itemString)
-    local warbank = TSM_API.GetWarbankQuantity(itemString)
-    local total = player + alts + auctions + altAuctions + guild + warbank
-    if total == 0 then return end
-    tt:AddLine(sformat(L["OWNED_FMT"], total), 1, 0.82, 0)
-    wipe(scratch)
-    Part(scratch, L["OWNED_BAGS"], TSM_API.GetBagQuantity(itemString))
-    Part(scratch, L["OWNED_BANK"], TSM_API.GetBankQuantity(itemString))
-    Part(scratch, L["OWNED_MAIL"], TSM_API.GetMailQuantity(itemString))
-    Part(scratch, L["OWNED_AUCTIONS"], auctions)
-    if #scratch > 0 then tt:AddLine(tconcat(scratch, ", "), 1, 1, 1) end
-    wipe(scratch)
-    Part(scratch, L["OWNED_ALTS"], alts)
-    Part(scratch, L["OWNED_ALT_AUCTIONS"], altAuctions)
-    Part(scratch, L["OWNED_GUILD"], guild)
-    Part(scratch, L["OWNED_WARBANK"], warbank)
-    if #scratch > 0 then tt:AddLine(tconcat(scratch, ", "), 1, 1, 1) end
+-- TSM's own tooltip lines carry its prices and counts on every item
+-- tooltip; ours only say why a row shows the vendor's price.
+local function AddFallbackLine(tt, itemString)
+    local _, fallback = Price(itemString)
+    if fallback then tt:AddLine(sformat(L["FALLBACK_FMT"], S.sourceLabel, S.fallbackLabel), 1, 1, 1) end
 end
 
 local function ByName(a, b)
@@ -343,9 +311,7 @@ local function Tooltip(row, tt)
         return true
     end
     tt:SetHyperlink(TSM_API.GetItemLink(row.itemString))
-    tt:AddLine(" ")
-    AddPriceLine(tt, row.itemString)
-    if DB().counts ~= false then AddCountLines(tt, row.itemString) end
+    AddFallbackLine(tt, row.itemString)
     if row.kind == "queue" then AddMaterialLines(tt, row) end
     return true
 end
@@ -362,8 +328,8 @@ end
 
 -- ==== EasyFind's own item rows ==============================================
 
--- The decorator takes our rows too: their tooltip and menu already carry
--- these lines, so only the price at the row's right is added there.
+-- The decorator takes our rows too: their own tooltip and menu carry
+-- these, so only the price at the row's right is added there.
 local function Ours(row)
     return row.category == CATEGORY
 end
@@ -388,9 +354,7 @@ end
 
 local function RowTooltip(row, link, tt)
     local s = S.ready and not Ours(row) and ItemString(link, row.itemID)
-    if not s then return end
-    AddPriceLine(tt, s)
-    if DB().counts ~= false then AddCountLines(tt, s) end
+    if s then AddFallbackLine(tt, s) end
 end
 
 local function RowMenu(row, link)
@@ -399,7 +363,7 @@ local function RowMenu(row, link)
 end
 
 -- Every item row in EasyFind: the price at its right, its group under
--- its name, the counts under its tooltip, its TSM group on its menu.
+-- its name, its TSM group on its menu.
 local function HookRows()
     API.RegisterRowDecorator({ id = KEY, slot = "price", label = L["DECOR_LABEL"],
                                text = RowText, subtext = RowSubtext, tooltip = RowTooltip, menu = RowMenu })
@@ -449,7 +413,6 @@ end
 
 local function FilterOptions()
     return { Option("prices", L["OPT_PRICES"], L["OPT_PRICES_TIP"]),
-             Option("counts", L["OPT_COUNTS"], L["OPT_COUNTS_TIP"]),
              Option("queue", L["OPT_QUEUE"], L["OPT_QUEUE_TIP"]) }
 end
 
