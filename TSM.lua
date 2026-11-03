@@ -28,6 +28,9 @@ local MAX_MATERIALS = 12                -- material lines in a queue row's toolt
 local SOURCES = { "dbmarket", "dbminbuyout", "dbhistorical", "dbrecent", "dbregionmarketavg",
                   "dbregionhistorical", "dbregionsaleavg", "crafting", "vendorsell", "vendorbuy",
                   "destroy", "disenchant" }
+-- Short forms players type for group words ("bs mats").
+local SHORT = { blacksmithing = "bs", jewelcrafting = "jc", leatherworking = "lw", materials = "mats",
+                ["first aid"] = "fa" }
 
 local C_Item, C_Timer = C_Item, C_Timer
 local IsControlKeyDown, IsAltKeyDown = IsControlKeyDown, IsAltKeyDown
@@ -133,13 +136,19 @@ local function LeafName(path)
     return name
 end
 
--- Every segment of a group path, the words that find the group.
+local function AddWord(out, name)
+    out[#out + 1] = name
+    local short = SHORT[name:lower()]
+    if short then out[#out + 1] = short end
+end
+
+-- Every segment of a group path and its short form, the words that find the group.
 local function PathWords(path, out)
     local parent, name = TSM_API.SplitGroupPath(path)
-    out[#out + 1] = name
+    AddWord(out, name)
     while parent do
         parent, name = TSM_API.SplitGroupPath(parent)
-        out[#out + 1] = name
+        AddWord(out, name)
     end
     return out
 end

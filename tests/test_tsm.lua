@@ -54,6 +54,18 @@ function tests.itemRows_onceEach_underTheirOwnGroup()
     H.assertNil(row.path, "no path field on item rows")
 end
 
+function tests.groupWords_shortForms_bsMats()
+    local data = H.TsmData()
+    data.groups[#data.groups + 1] = "Blacksmithing"
+    data.groups[#data.groups + 1] = "Blacksmithing`Materials"
+    data.items["Blacksmithing`Materials"] = { "i:2835" }
+    local w = H.load({ tsmData = data }):login()
+    H.assertEq(table.concat(w:row("Blacksmithing->Materials").keywords, " "), "Materials mats Blacksmithing bs group")
+    H.assertEq(table.concat(w:row("Rough Stone").keywords, " "), "Materials mats Blacksmithing bs",
+        "its items found by them too")
+    H.assertEq(table.concat(w:row("Mats->Cloth").keywords, " "), "Cloth Mats group", "other words as they are")
+end
+
 function tests.queueRows_craftCount_skipsEnchants()
     local w = H.load():login()
     local row = w:row("Copper Bar")
