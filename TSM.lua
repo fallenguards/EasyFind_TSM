@@ -29,11 +29,16 @@ local MAX_MATERIALS = 12                -- material lines in a queue row's toolt
 local SOURCES = { "dbmarket", "dbminbuyout", "dbhistorical", "dbrecent", "dbregionmarketavg",
                   "dbregionhistorical", "dbregionsaleavg", "crafting", "vendorsell", "vendorbuy",
                   "destroy", "disenchant" }
+-- TSM sources that are no money (levels, counts, rates), kept off Notes' prices.
+local NOT_MONEY = { itemquality = true, itemlevel = true, requiredlevel = true, maxstack = true,
+                    numinventory = true, numexpires = true, salerate = true, dbregionsalerate = true,
+                    dbregionsoldperday = true }
 -- Short forms players type for group words ("bs mats").
 local SHORT = { blacksmithing = "bs", jewelcrafting = "jc", leatherworking = "lw", materials = "mats",
                 ["first aid"] = "fa" }
 
 local C_Item, C_Timer = C_Item, C_Timer
+local GetItemInfo = C_Item.GetItemInfo or GetItemInfo
 local IsControlKeyDown, IsAltKeyDown = IsControlKeyDown, IsAltKeyDown
 
 -- Module state in one table (upvalue limit).
@@ -327,10 +332,15 @@ local function ShowGroup(path)
 end
 
 -- 12.1 moved the chat calls to ChatFrameUtil; older clients keep the globals.
-local function InsertChatLink(link)
+local function ActiveChatBox()
     local getActive = (ChatFrameUtil and ChatFrameUtil.GetActiveWindow) or ChatEdit_GetActiveWindow
     local active = getActive and getActive()
-    if active and active:IsShown() then return active:Insert(link) end
+    return active and active:IsShown() and active or nil
+end
+
+local function InsertChatLink(link)
+    local active = ActiveChatBox()
+    if active then return active:Insert(link) end
     local insert = (ChatFrameUtil and ChatFrameUtil.InsertLink) or ChatEdit_InsertLink
     if insert and insert(link) then return end
     local open = (ChatFrameUtil and ChatFrameUtil.OpenChat) or ChatFrame_OpenChat
@@ -468,6 +478,55 @@ local function SourceChoices()
     return out
 end
 
+-- ==== Notes' shopping lists =================================================
+
+-- Every money source the installed TSM has, the common ones first.
+local function PriceKinds()
+    local out, have, seen = {}, {}, {}
+    if not S.ready then return out end
+    local keys = SourceKeys()
+    for i = 1, #keys do have[keys[i]] = true end
+    local order = {}
+    for i = 1, #SOURCES do
+        if have[SOURCES[i]] then order[#order + 1] = SOURCES[i] end
+    end
+    for i = 1, #keys do order[#order + 1] = keys[i] end
+    for _, key in ipairs(order) do
+        if not (seen[key] or NOT_MONEY[key]) then
+            seen[key] = true
+            out[#out + 1] = { key = key, label = TSM_API.GetPriceSourceDescription(key) }
+        end
+    end
+    return out
+end
+
+-- A list line's price; TSM's reason for none is no note for the line.
+local function ListPrice(key, itemID, link)
+    local s = S.ready and ItemString(link, itemID)
+    if not s then return nil end
+    return (TSM_API.GetCustomPriceValue(key, s))
+end
+
+-- Ctrl+click on a list line at TSM's auction window: TSM takes a linked
+-- item as a search on its Browse tab. TSM wraps the legacy global only,
+-- and an open chat box gets the link before TSM does.
+local function AuctionSearch(link, name)
+    if not (S.ready and TSM_API.IsUIVisible("AUCTION")) or ActiveChatBox() then return false end
+    link = link or (name and GetItemInfo and select(2, GetItemInfo(name)))
+    if not (link and ChatEdit_InsertLink) then return false end
+    ChatEdit_InsertLink(link)
+    return true
+end
+
+local function HookNotes()
+    if API.RegisterPriceSource then
+        API.RegisterPriceSource(KEY, { label = L["EXT_NAME"], sources = PriceKinds, price = ListPrice })
+    end
+    if API.RegisterAuctionSearch and type(TSM_API.IsUIVisible) == "function" then
+        API.RegisterAuctionSearch(KEY, AuctionSearch)
+    end
+end
+
 local function Option(key, label, tip)
     return {
         label = label, tooltip = tip,
@@ -566,6 +625,7 @@ local function Start()
     end
     C_Timer.NewTicker(PRICE_TTL, Invalidate)
     HookRows()
+    HookNotes()
     API.RefreshSearchProvider(KEY)
 end
 
@@ -589,4 +649,5 @@ events:SetScript("OnEvent", function(self, event)
     end
     -- The auction house closed: TSM may hold new prices.
     Invalidate()
+    if API.RefreshPrices then API.RefreshPrices(KEY) end
 end)

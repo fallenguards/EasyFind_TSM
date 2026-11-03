@@ -81,7 +81,7 @@ function H.TsmData()
         -- A queued enchant crafts no item: its item string is "".
         queue = { { "r:2840", "i:2840", 5 }, { "r:7421", "", 2 } },
         mats = { ["r:2840"] = { ["i:2770"] = 1, ["i:2835"] = 2 } },
-        callbacks = {}, uiCallbacks = {},
+        callbacks = {}, uiCallbacks = {}, shown = {},
     }
 end
 
@@ -149,6 +149,10 @@ local function FakeTSM(d)
         Check(type(tag) == "string" and tag ~= "" and type(fn) == "function", "Invalid callback arguments")
         Check(not d.callbacks[tag], "Callback already registered for addonTag: " .. tag)
         d.callbacks[tag] = fn
+    end
+    function T.IsUIVisible(ui)
+        Check(ui == "AUCTION" or ui == "CRAFTING" or ui == "MAILING" or ui == "VENDORING", "Invalid uiName: " .. tostring(ui))
+        return d.shown[ui] == true
     end
     function T.RegisterUICallback(ui, tag, fn)
         Check(ui == "CRAFTING", "Invalid uiName: " .. tostring(ui))
@@ -290,6 +294,19 @@ local function NewAPI(w, minor, fields)
         return true
     end
     function API.OpenNote(noteID) rec.opened[#rec.opened + 1] = noteID end
+    -- Notes' shopping list prices and auction searches came in MINOR 7.
+    rec.priceSources, rec.auctionSearches, rec.priceRefreshes = {}, {}, 0
+    if minor >= 7 then
+        function API.RegisterPriceSource(id, def)
+            assert(type(def) == "table" and type(def.price) == "function", "RegisterPriceSource: def.price must be a function")
+            rec.priceSources[id] = def
+        end
+        function API.RefreshPrices() rec.priceRefreshes = rec.priceRefreshes + 1 end
+        function API.RegisterAuctionSearch(id, fn)
+            assert(type(fn) == "function", "RegisterAuctionSearch: fn must be a function")
+            rec.auctionSearches[id] = fn
+        end
+    end
     w.api = rec
     return API
 end
@@ -439,12 +456,23 @@ function H.load(opts)
         end,
         OpenChat = function(text) w.chat.opened = text end,
     }
+    -- The legacy global, the one TSM wraps: what reached it.
+    env.ChatEdit_InsertLink = function(link)
+        w.chat.legacy = link
+        return true
+    end
 
     local tsm = opts.tsmData or H.TsmData()
     w.tsm = tsm
     env.C_Item = {
         GetItemNameByID = function(id) return tsm.names["i:" .. id] end,
         GetItemIconByID = function(id) return 100000 + id end,
+        -- By name, as the client answers for a cached item: the link second.
+        GetItemInfo = function(name)
+            for s, n in pairs(tsm.names) do
+                if n == name then return n, "|cffffffff|Hitem:" .. s:match("%d+") .. "::|h[" .. n .. "]|h|r" end
+            end
+        end,
     }
     local tsmLoaded = opts.tsm ~= false
     env.C_AddOns = { IsAddOnLoaded = function(name) return name == "TradeSkillMaster" and tsmLoaded end }

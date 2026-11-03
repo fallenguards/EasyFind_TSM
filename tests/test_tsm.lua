@@ -419,4 +419,75 @@ function tests.shoppingList_none_whenNothingNeeded_orQueueOff()
     H.assertNil(H.load({ saved = { queue = false } }):login():row("Crafting materials"), "queue rows off")
 end
 
+-- ==== Notes' shopping list prices and auction searches (MINOR 7) =============
+
+local function Keys(list)
+    local out = {}
+    for i, s in ipairs(list) do out[i] = s.key end
+    return table.concat(out, ",")
+end
+
+function tests.notesPrices_everyMoneySource_theCommonOnesFirst()
+    local w = H.load({ minor = 7 }):login()
+    local def = w.api.priceSources.tsm
+    H.assertEq(def and def.label, "TSM", "picked by the extension's name")
+    local kinds = def.sources()
+    H.assertEq(Keys(kinds), "dbmarket,dbminbuyout,crafting,vendorsell,matprice", "no Sale Rate: it is no money")
+    H.assertEq(kinds[1].label, "AuctionDB - Market Value", "TSM's own names")
+end
+
+function tests.notesPrices_bySourceKey_noTSMReasonAsANote()
+    local w = H.load({ minor = 7 }):login()
+    local price = w.api.priceSources.tsm.price
+    H.assertEq(price("dbmarket", 2589), 120, "by the item id")
+    H.assertEq(price("dbminbuyout", 2589, LINEN_LINK), 99, "by the link")
+    H.assertEq(select("#", price("dbmarket", 2835)), 1, "none: nil alone, not TSM's reason")
+    H.assertNil(price("dbmarket", 2835))
+end
+
+function tests.notesPrices_redrawnWhenTheAuctionHouseCloses()
+    local w = H.load({ minor = 7 }):login()
+    local before = w.api.priceRefreshes
+    w:fire("AUCTION_HOUSE_CLOSED")
+    H.assertEq(w.api.priceRefreshes, before + 1)
+end
+
+function tests.auctionSearch_onlyAtTSMsAuctionWindow()
+    local w = H.load({ minor = 7 }):login()
+    local search = w.api.auctionSearches.tsm
+    H.assertEq(search(LINEN_LINK, "Linen Cloth"), false, "TSM's window is not up: the house's own box")
+    H.assertNil(w.chat.legacy)
+    w.tsm.shown.AUCTION = true
+    H.assertEq(search(LINEN_LINK, "Linen Cloth"), true)
+    H.assertEq(w.chat.legacy, LINEN_LINK, "linked through the global TSM wraps")
+    H.assertNil(w.chat.inserted, "not through ChatFrameUtil, which TSM never sees")
+end
+
+function tests.auctionSearch_aTypedLine_linkedByName()
+    local w = H.load({ minor = 7 }):login()
+    local search = w.api.auctionSearches.tsm
+    w.tsm.shown.AUCTION = true
+    H.assertEq(search(nil, "Wool Cloth"), true)
+    H.assertTrue(w.chat.legacy:find("Hitem:2592:", 1, true), "the item's link")
+    w.chat.legacy = nil
+    H.assertEq(search(nil, "Mystery Thing"), false, "an unknown name: no link to give TSM")
+    H.assertNil(w.chat.legacy)
+end
+
+function tests.auctionSearch_notWhileAChatBoxIsOpen()
+    local w = H.load({ minor = 7 }):login()
+    w.tsm.shown.AUCTION = true
+    w.chat.active = { IsShown = function() return true end, Insert = function() end }
+    H.assertEq(w.api.auctionSearches.tsm(LINEN_LINK, "Linen Cloth"), false, "the link would land in chat")
+    H.assertNil(w.chat.legacy)
+end
+
+function tests.olderEasyFind_noNotesHooks()
+    local w = H.load({ minor = 6 }):login()
+    H.assertNil(w.api.priceSources.tsm)
+    H.assertNil(w.api.auctionSearches.tsm)
+    w:fire("AUCTION_HOUSE_CLOSED")
+    H.assertEq(#w.api.bad, 0)
+end
+
 return H.runSuite("TSM", tests)
