@@ -245,15 +245,18 @@ local function GroupRow(path, out)
 end
 
 -- The group's own items (a subgroup's come with the subgroup), each
--- carrying the words of its path.
+-- carrying the words of its path. Outside @tsm only those words find
+-- them: EasyFind's own item row is the one its name finds (MINOR 7).
 local function ItemRows(path, out)
     local items = TSM_API.GetGroupItems(path, false, {})
     local words = PathWords(path, {})
     local group = TSM_API.FormatGroupPath(path)
+    local scoped = (API.MINOR or 0) >= 7 or nil
     for i = 1, #items do
         local s = items[i]
         out[#out + 1] = { name = ItemName(s), kind = "item", itemString = s, itemID = ItemID(s),
-                          icon = ItemIcon(s), groupPath = path, keywords = words, searchCommandDesc = group }
+                          icon = ItemIcon(s), groupPath = path, keywords = words, searchCommandDesc = group,
+                          scopedName = scoped }
     end
 end
 

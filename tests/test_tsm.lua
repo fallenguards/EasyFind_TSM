@@ -54,6 +54,14 @@ function tests.itemRows_onceEach_underTheirOwnGroup()
     H.assertNil(row.path, "no path field on item rows")
 end
 
+function tests.itemRows_nameOnlyUnderTheScope_fromMinor7()
+    local w = H.load({ minor = 7 }):login()
+    H.assertEq(w:row("Linen Cloth").scopedName, true, "EasyFind's own row is the one its name finds")
+    H.assertNil(w:row("Mats->Cloth").scopedName, "groups found by name everywhere")
+    H.assertNil(w:row("Copper Bar").scopedName, "and the queue")
+    H.assertNil(H.load({ minor = 6 }):login():row("Linen Cloth").scopedName, "an older EasyFind: as before")
+end
+
 function tests.groupWords_shortForms_bsMats()
     local data = H.TsmData()
     data.groups[#data.groups + 1] = "Blacksmithing"
