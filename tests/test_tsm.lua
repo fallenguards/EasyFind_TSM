@@ -230,6 +230,15 @@ function tests.decorator_ownRows_priceOnly_noDoubledLines()
     H.assertNil(d.menu(row, "item:2589"), "no second group entry")
 end
 
+function tests.subtext_itsTSMGroup_onEasyFindsRows()
+    local w = H.load():login()
+    local d = w:decorator()
+    H.assertEq(d.subtext(BagRow(2589, LINEN_LINK)), "TSM: Mats->Cloth")
+    H.assertEq(d.subtext(BagRow(2770)), "TSM: Mats", "by its id")
+    H.assertNil(d.subtext(BagRow(7005)), "in no group")
+    H.assertNil(d.subtext(w:row("Linen Cloth")), "TSM's own row shows its group already")
+end
+
 function tests.prices_keptUntilTheAuctionHouseCloses()
     local w = H.load():login()
     local d = w:decorator()

@@ -353,6 +353,14 @@ local function RowText(row, link)
     return s and Price(s) or nil
 end
 
+-- "TSM: <group>" after the row's own subtext.
+local function RowSubtext(row)
+    local s = S.ready and not Ours(row) and ItemString(row.bagItemLink, row.itemID)
+    local path = s and TSM_API.GetGroupPathByItem(s)
+    if not path or path == "" then return nil end
+    return sformat(L["GROUP_SUBTEXT_FMT"], TSM_API.FormatGroupPath(path))
+end
+
 local function RowTooltip(row, link, tt)
     local s = S.ready and not Ours(row) and ItemString(link, row.itemID)
     if not s then return end
@@ -365,11 +373,11 @@ local function RowMenu(row, link)
     return s and GroupMenu(TSM_API.GetGroupPathByItem(s)) or nil
 end
 
--- Every item row in EasyFind: the price at its right, the counts under
--- its tooltip, its TSM group on its menu.
+-- Every item row in EasyFind: the price at its right, its group under
+-- its name, the counts under its tooltip, its TSM group on its menu.
 local function HookRows()
     API.RegisterRowDecorator({ id = KEY, slot = "price", label = L["DECOR_LABEL"],
-                               text = RowText, tooltip = RowTooltip, menu = RowMenu })
+                               text = RowText, subtext = RowSubtext, tooltip = RowTooltip, menu = RowMenu })
 end
 
 -- ==== settings ==============================================================

@@ -35,6 +35,7 @@ L["OWNED_ALT_AUCTIONS"] = "their auctions"
 L["OWNED_GUILD"] = GUILD_BANK or "Guild bank"
 L["OWNED_WARBANK"] = ACCOUNT_BANK_PANEL_TITLE or "Warband bank"
 L["NO_PRICE"] = "No price"
+L["GROUP_SUBTEXT_FMT"] = "TSM: %s"
 
 L["HINT_LIST_ITEMS"] = "List its items"
 L["HINT_LINK"] = "Link in chat"
