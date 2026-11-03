@@ -70,8 +70,10 @@ function H.TsmData()
         items = { Mats = { "i:2770" }, ["Mats`Cloth"] = { "i:2592", "i:2589" }, Gear = {} },
         names = { ["i:2589"] = "Linen Cloth", ["i:2592"] = "Wool Cloth", ["i:2770"] = "Copper Ore",
                   ["i:2840"] = "Copper Bar", ["i:2835"] = "Rough Stone", ["i:7005"] = "Skinning Knife" },
-        sources = { dbmarket = "AuctionDB - Market Value", dbminbuyout = "AuctionDB - Minimum Buyout",
-                    vendorsell = "Vendor Sell Price", crafting = "Crafting Cost", matprice = "Material Price" },
+        -- Keyed in TSM's own case, as GetPriceSourceKeys gives them; SaleRate is no money.
+        sources = { DBMarket = "AuctionDB - Market Value", DBMinBuyout = "AuctionDB - Minimum Buyout",
+                    VendorSell = "Vendor Sell Price", Crafting = "Crafting Cost", MatPrice = "Material Price",
+                    SaleRate = "Sale Rate" },
         prices = { dbmarket = { ["i:2589"] = 120, ["i:2592"] = 300, ["i:2770"] = 45, ["i:7005"] = 900 },
                    dbminbuyout = { ["i:2589"] = 99 }, vendorsell = { ["i:2589"] = 13 } },
         bags = { ["i:2589"] = 20, ["i:2770"] = 4 }, bank = { ["i:2589"] = 5 }, mail = {}, auctions = { ["i:2589"] = 40 },
@@ -92,7 +94,14 @@ local function FakeTSM(d)
     end
     local function Path(p) Check(type(p) == "string" and p ~= "", "Invalid 'path' argument: " .. tostring(p)) end
     local function Owns(tbl, s) return tbl[ItemString(s)] or 0 end
+    -- TSM matches source names case-blind.
+    local function Source(key)
+        for k, label in pairs(d.sources) do
+            if k:lower() == key:lower() then return label end
+        end
+    end
     local function Value(str, s)
+        str = str:lower()
         if d.prices[str] then return d.prices[str][s] end
         local best
         for key in str:gmatch("[%a_]+") do
@@ -156,21 +165,24 @@ local function FakeTSM(d)
     end
     function T.GetPriceSourceDescription(key)
         Check(type(key) == "string", "Invalid 'key' argument")
-        Check(d.sources[key], "Unknown price source key: " .. key)
-        return d.sources[key]
+        Check(Source(key), "Unknown price source key: " .. key)
+        return Source(key)
     end
     function T.IsCustomPriceValid(str)
         Check(type(str) == "string", "Invalid 'customPriceStr' argument")
         for key in str:gmatch("[%a_]+") do
-            if not (d.sources[key] or key == "max" or key == "min" or key == "avg") then
+            if not (Source(key) or key == "max" or key == "min" or key == "avg") then
                 return false, "Unknown word: " .. key
             end
         end
         return true
     end
+    -- No value comes with TSM's reason as a second return.
     function T.GetCustomPriceValue(str, s)
         Check(type(str) == "string", "Invalid 'customPriceStr' argument")
-        return Value(str, ItemString(s))
+        local v = Value(str, ItemString(s))
+        if v then return v end
+        return nil, "No value for " .. str
     end
     function T.FormatMoneyString(v)
         Check(type(v) == "number", "Invalid 'value' argument")

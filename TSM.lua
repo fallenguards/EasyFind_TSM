@@ -444,6 +444,13 @@ local function SetSource(str, quiet)
     if not quiet then Print(sformat(L["SOURCE_SET_FMT"], S.sourceLabel)) end
 end
 
+-- The installed TSM's source keys, lowercased as SOURCES are ("DBMarket").
+local function SourceKeys()
+    local keys = TSM_API.GetPriceSourceKeys({})
+    for i = 1, #keys do keys[i] = keys[i]:lower() end
+    return keys
+end
+
 -- The known sources the installed TSM offers; a custom string in use
 -- leads the list so the choice shows it.
 local function SourceChoices()
@@ -451,7 +458,7 @@ local function SourceChoices()
     local current = Source()
     if not S.ready then return { { label = current, value = current } } end
     local have = {}
-    local keys = TSM_API.GetPriceSourceKeys({})
+    local keys = SourceKeys()
     for i = 1, #keys do have[keys[i]] = true end
     for i = 1, #SOURCES do
         local key = SOURCES[i]
