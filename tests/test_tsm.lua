@@ -26,7 +26,7 @@ end
 
 function tests.rows_groupsThenQueueThenItems_eachByName()
     local w = H.load():login()
-    H.assertEq(Names(w:rows()), "Gear, Mats, Mats->Cloth, Copper Bar, Copper Ore, Linen Cloth, Wool Cloth")
+    H.assertEq(Names(w:rows()), "Gear, Mats, Mats->Cloth, Crafting materials, Copper Bar, Copper Ore, Linen Cloth, Wool Cloth")
 end
 
 function tests.groupRow_pathWords_itemCount_noPathField()
@@ -360,6 +360,63 @@ function tests.craftingWindowCloses_queueReadAgain()
     w.tsm.uiCallbacks.EasyFind_TSM(false)
     w:advance(1)
     H.assertEq(w.api.refreshes, before + 1, "closing reads the queue again")
+end
+
+-- ==== the shopping list =====================================================
+
+local function Entries(note)
+    local out = {}
+    for i, e in ipairs(note.entries) do
+        local l = e.line
+        out[i] = string.format("%s %s x%d", e.ref, tostring(l.item or l.text), l.target)
+    end
+    return table.concat(out, ", ")
+end
+
+function tests.shoppingList_oneRow_theWholeQueuesMaterials()
+    local w = H.load():login()
+    local row = w:row("Crafting materials")
+    H.assertEq(row.kind, "list")
+    H.assertEq(row.searchCommandDesc, "2 materials for TSM's crafting queue")
+    H.assertTrue(table.concat(row.keywords, " "):find("need", 1, true), "found by need")
+    H.assertEq(w:provider().hint(row), "Open in Notes")
+    local tt = H.Tooltip()
+    w:provider().tooltip(row, tt)
+    H.assertTrue(tt:Has("Copper Ore  4/5"), "have over need")
+    H.assertTrue(tt:Has("Rough Stone  0/10"))
+end
+
+function tests.shoppingList_opensAsAChecklistNote()
+    local w = H.load():login()
+    w:provider().select(w:row("Crafting materials"))
+    local note = w.api.notes["tsm:queue"]
+    H.assertEq(note and note.title, "Crafting materials")
+    H.assertEq(Entries(note), "i:2770 2770 x5, i:2835 2835 x10", "items counted toward what the queue needs, by name")
+    H.assertEq(note.entries[1].line.link, "item", "counted from the bags")
+    H.assertEq(w.api.opened[1], note.id, "opened in Notes")
+    local cat = w.api.checklists.handlers.category
+    H.assertEq(cat.window, "auctionhouse", "tagged for the auction house")
+end
+
+function tests.shoppingList_followsTheQueue()
+    local w = H.load():login()
+    w.tsm.uiCallbacks.EasyFind_TSM(false)
+    H.assertNil(w.api.notes["tsm:queue"], "no note made unasked")
+    w:provider().select(w:row("Crafting materials"))
+    local note = w.api.notes["tsm:queue"]
+    w.tsm.queue[1][3] = 2
+    w.tsm.uiCallbacks.EasyFind_TSM(false)
+    H.assertEq(Entries(note), "i:2770 2770 x2, i:2835 2835 x4", "the crafting window closed")
+    w.tsm.queue[1][3] = 1
+    w.api.checklists.handlers.shown(note.id, "queue")
+    H.assertEq(Entries(note), "i:2770 2770 x1, i:2835 2835 x2", "opened in Notes")
+end
+
+function tests.shoppingList_none_whenNothingNeeded_orQueueOff()
+    local data = H.TsmData()
+    data.queue = { { "r:7421", "", 2 } }
+    H.assertNil(H.load({ tsmData = data }):login():row("Crafting materials"), "a queue needing nothing")
+    H.assertNil(H.load({ saved = { queue = false } }):login():row("Crafting materials"), "queue rows off")
 end
 
 return H.runSuite("TSM", tests)

@@ -177,13 +177,26 @@ local function ByName(a, b)
     return a.name < b.name
 end
 
--- A queued craft's materials, have over need for the whole queue entry.
-local function AddMaterialLines(tt, row)
+-- What a queue entry needs, item string -> count.
+local function CraftNeeds(recipeString, num, need)
     local mats = {}
-    TSM_API.GetCraftingQueueItemMaterials(row.recipeString, mats)
+    TSM_API.GetCraftingQueueItemMaterials(recipeString, mats)
+    for itemString, qty in pairs(mats) do need[itemString] = (need[itemString] or 0) + qty * num end
+    return need
+end
+
+-- What the whole queue needs.
+local function QueueNeeds()
+    local need = {}
+    for _, recipeString, _, num in TSM_API.CraftingQueueIterator() do CraftNeeds(recipeString, num, need) end
+    return need
+end
+
+-- Materials, have over need, short ones reddish.
+local function AddMaterialLines(tt, need)
     local list = {}
-    for itemString, qty in pairs(mats) do
-        list[#list + 1] = { name = ItemName(itemString), itemString = itemString, need = qty * row.num }
+    for itemString, n in pairs(need) do
+        list[#list + 1] = { name = ItemName(itemString), itemString = itemString, need = n }
     end
     if #list == 0 then return end
     tsort(list, ByName)
@@ -239,9 +252,48 @@ local function QueueRows(out)
     end
 end
 
-local KIND_ORDER = { group = 1, queue = 2, item = 3 }
+-- ==== the shopping list =====================================================
 
--- Groups lead, then the queue, then items, each by name.
+-- The whole queue's materials as one checklist note in EasyFind's Notes,
+-- each line an item counted toward what the queue needs. TSM_API cannot
+-- change the queue, so the note follows it: filled again when it opens and
+-- when TSM's crafting window closes; lines typed by hand stay the note's.
+local LIST_KEY = "queue"
+
+local function ListEntries()
+    local list = {}
+    for itemString, n in pairs(QueueNeeds()) do
+        local id = ItemID(itemString)
+        local line = id and { link = "item", item = id, target = n } or { text = ItemName(itemString), target = n }
+        list[#list + 1] = { name = ItemName(itemString), ref = itemString, line = line }
+    end
+    tsort(list, ByName)
+    return list
+end
+
+local function SyncList(make)
+    local id = API.LinkedChecklist and API.LinkedChecklist(KEY, LIST_KEY, L["LIST_TITLE"], make)
+    if id then API.SyncChecklist(id, ListEntries()) end
+    return id
+end
+
+local function OpenList()
+    local id = S.ready and SyncList(true)
+    if id then API.OpenNote(id) end
+end
+
+local function ListRow(out)
+    local n = 0
+    for _ in pairs(QueueNeeds()) do n = n + 1 end
+    if n == 0 or not API.LinkedChecklist then return end
+    out[#out + 1] = { name = L["LIST_TITLE"], kind = "list",
+                      keywords = { "shopping", "list", "need", "materials", "mats", "craft", "queue" },
+                      searchCommandDesc = sformat(n == 1 and L["LIST_ONE"] or L["LIST_FMT"], n) }
+end
+
+local KIND_ORDER = { group = 1, list = 2, queue = 3, item = 4 }
+
+-- Groups lead, then the shopping list and the queue, then items, each by name.
 local function KindThenName(a, b)
     if a.kind ~= b.kind then return KIND_ORDER[a.kind] < KIND_ORDER[b.kind] end
     return a.name < b.name
@@ -252,7 +304,10 @@ local function Rows()
     local out = {}
     local paths = TSM_API.GetGroupPaths({})
     for i = 1, #paths do GroupRow(paths[i], out) end
-    if DB().queue ~= false then QueueRows(out) end
+    if DB().queue ~= false then
+        ListRow(out)
+        QueueRows(out)
+    end
     for i = 1, #paths do ItemRows(paths[i], out) end
     tsort(out, KindThenName)
     return out
@@ -282,11 +337,12 @@ local function InsertChatLink(link)
     if open then open(link) end
 end
 
--- A group lists its items; an item links in chat, Ctrl tries it on,
--- Alt lists its group.
+-- A group lists its items; the shopping list opens in Notes; an item
+-- links in chat, Ctrl tries it on, Alt lists its group.
 local function Select(row)
     if not S.ready then return end
     if row.kind == "group" then return ShowGroup(row.groupPath) end
+    if row.kind == "list" then return OpenList() end
     local link = TSM_API.GetItemLink(row.itemString)
     if IsControlKeyDown() then return DressUpItemLink(link) end
     if IsAltKeyDown() then
@@ -299,6 +355,7 @@ end
 
 local function Hint(row)
     if row.kind == "group" then return L["HINT_LIST_ITEMS"] end
+    if row.kind == "list" then return L["HINT_OPEN_LIST"] end
     local path = row.groupPath or (S.ready and TSM_API.GetGroupPathByItem(row.itemString))
     return { click = L["HINT_LINK"], ctrl = L["HINT_DRESS"], alt = path and L["HINT_GROUP"] or nil }
 end
@@ -310,9 +367,14 @@ local function Tooltip(row, tt)
         tt:AddLine(row.searchCommandDesc, 1, 1, 1)
         return true
     end
+    if row.kind == "list" then
+        tt:SetText(row.name)
+        AddMaterialLines(tt, QueueNeeds())
+        return true
+    end
     tt:SetHyperlink(TSM_API.GetItemLink(row.itemString))
     AddFallbackLine(tt, row.itemString)
-    if row.kind == "queue" then AddMaterialLines(tt, row) end
+    if row.kind == "queue" then AddMaterialLines(tt, CraftNeeds(row.recipeString, row.num, {})) end
     return true
 end
 
@@ -473,13 +535,27 @@ API.RegisterSearchProvider({
     browse = function(row) return row.kind ~= "item" end,
 })
 
+-- The shopping list's note: filed in Notes under its own category, with
+-- the auction house's tag; item names typed in it count like its lines.
+if API.LinkChecklists then
+    API.LinkChecklists(KEY, {
+        category = { key = "TSMCrafting", label = L["NOTE_CATEGORY"], window = "auctionhouse" },
+        items = true,
+        shown = function(noteID) if S.ready then API.SyncChecklist(noteID, ListEntries()) end end,
+    })
+end
+
 local function Start()
     S.ready = true
     SetSourceLabel()
     TSM_API.RegisterGroupItemCallback(TAG, Refresh)
     -- The queue changes inside TSM's crafting window: read again when it closes.
     if type(TSM_API.RegisterUICallback) == "function" then
-        TSM_API.RegisterUICallback("CRAFTING", TAG, function(shown) if not shown then Refresh() end end)
+        TSM_API.RegisterUICallback("CRAFTING", TAG, function(shown)
+            if shown then return end
+            Refresh()
+            SyncList(false)
+        end)
     end
     C_Timer.NewTicker(PRICE_TTL, Invalidate)
     HookRows()

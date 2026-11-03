@@ -265,6 +265,19 @@ local function NewAPI(w, minor, fields)
     function API.RefreshRowDecorations() rec.decorRefreshes = rec.decorRefreshes + 1 end
     function API.RefreshSearchProvider(key) rec.refreshes = rec.refreshes + 1 rec.refreshedKey = key end
     function API.ShowScope(key, text) rec.scopes[#rec.scopes + 1] = { key = key, text = text } end
+    -- Notes' linked checklists: one note per (id, key), its entries as synced.
+    rec.notes, rec.opened = {}, {}
+    function API.LinkChecklists(id, handlers) rec.checklists = { id = id, handlers = handlers } end
+    function API.LinkedChecklist(id, key, title, make)
+        local k = id .. ":" .. key
+        if not rec.notes[k] and make then rec.notes[k] = { id = #rec.opened + 100, title = title } end
+        return rec.notes[k] and rec.notes[k].id
+    end
+    function API.SyncChecklist(noteID, entries)
+        for _, n in pairs(rec.notes) do if n.id == noteID then n.entries = entries end end
+        return true
+    end
+    function API.OpenNote(noteID) rec.opened[#rec.opened + 1] = noteID end
     w.api = rec
     return API
 end
