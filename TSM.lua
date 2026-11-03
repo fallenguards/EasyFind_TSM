@@ -21,6 +21,7 @@ local CATEGORY = L["CATEGORY"]
 local TAG = "EasyFind_TSM"              -- our name in TSM's callback registries
 local ICON = "Interface\\AddOns\\EasyFind_TSM\\icon"
 local DEFAULT_SOURCE = "dbmarket"
+local FALLBACK_SOURCE = "vendorsell"     -- when the chosen price has none (Era realms have no market data)
 local LOAD_RETRY, LOAD_TRIES = 2, 30    -- seconds between, and how many, waits for TSM's data
 local PRICE_TTL = 600                   -- seconds a looked-up price is kept
 local MAX_MATERIALS = 12                -- material lines in a queue row's tooltip
@@ -39,7 +40,9 @@ local IsControlKeyDown, IsAltKeyDown = IsControlKeyDown, IsAltKeyDown
 local S = {
     ready = false,
     sourceLabel = "",
+    fallbackLabel = "",
     prices = {},          -- itemString -> copper, false for none
+    vendor = {},          -- the same for FALLBACK_SOURCE
     strings = {},         -- link or itemID -> TSM item string, false for none
     refreshPending = false,
 }
@@ -84,6 +87,7 @@ end
 local function SetSourceLabel()
     local ok, label = pcall(TSM_API.GetPriceSourceDescription, Source())
     S.sourceLabel = ok and label or Source()
+    S.fallbackLabel = TSM_API.GetPriceSourceDescription(FALLBACK_SOURCE)
 end
 
 local function ItemString(link, itemID)
@@ -115,18 +119,27 @@ local function ItemIcon(itemString)
     return id and C_Item.GetItemIconByID(id) or nil
 end
 
--- The chosen source's value in copper, nil when TSM has none; kept until
--- the source changes or the price cache turns over.
-local function Price(itemString)
-    local cached = S.prices[itemString]
+-- A source's value in copper, nil when TSM has none; kept until the
+-- source changes or the price cache turns over.
+local function Lookup(cache, source, itemString)
+    local cached = cache[itemString]
     if cached ~= nil then return cached or nil end
-    local value = TSM_API.GetCustomPriceValue(Source(), itemString)
-    S.prices[itemString] = value or false
+    local value = TSM_API.GetCustomPriceValue(source, itemString)
+    cache[itemString] = value or false
     return value
+end
+
+-- The chosen price, else the vendor's and true.
+local function Price(itemString)
+    local value = Lookup(S.prices, Source(), itemString)
+    if value or Source() == FALLBACK_SOURCE then return value end
+    value = Lookup(S.vendor, FALLBACK_SOURCE, itemString)
+    return value, value ~= nil
 end
 
 local function Invalidate()
     wipe(S.prices)
+    wipe(S.vendor)
     wipe(S.strings)
     API.RefreshRowDecorations()
 end
@@ -156,7 +169,12 @@ end
 -- ==== tooltip lines =========================================================
 
 local function AddPriceLine(tt, itemString)
-    local value = Price(itemString)
+    local value, fallback = Price(itemString)
+    if fallback then
+        tt:AddLine(S.sourceLabel .. ": " .. L["NO_PRICE"], 1, 1, 1)
+        tt:AddLine(sformat(L["FALLBACK_FMT"], S.fallbackLabel, TSM_API.FormatMoneyString(value)), 1, 1, 1)
+        return
+    end
     tt:AddLine(S.sourceLabel .. ": " .. (value and TSM_API.FormatMoneyString(value) or L["NO_PRICE"]), 1, 1, 1)
 end
 
@@ -347,10 +365,14 @@ local function Ours(row)
     return row.category == CATEGORY
 end
 
+-- A vendor price standing in shows dimmed.
 local function RowText(row, link)
     if not S.ready or DB().prices == false then return nil end
     local s = ItemString(link, row.itemID)
-    return s and Price(s) or nil
+    if not s then return nil end
+    local value, fallback = Price(s)
+    if fallback then return value, "dim" end
+    return value
 end
 
 -- "TSM: <group>" after the row's own subtext.

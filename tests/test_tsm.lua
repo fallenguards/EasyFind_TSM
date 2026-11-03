@@ -230,6 +230,33 @@ function tests.decorator_ownRows_priceOnly_noDoubledLines()
     H.assertNil(d.menu(row, "item:2589"), "no second group entry")
 end
 
+-- An Era realm: TSM's app has no market data, the vendor's price stands in.
+function tests.noMarketPrice_vendorPriceDimmed_tooltipSaysSo()
+    local w = H.load():login()
+    w.tsm.prices.dbmarket["i:2589"] = nil
+    local d = w:decorator()
+    local value, word = d.text(BagRow(2589), "item:2589")
+    H.assertEq(value, 13, "the vendor's price")
+    H.assertEq(word, "dim", "dimmed: not the chosen price")
+    H.assertEq(select("#", d.text(BagRow(2770), "item:2770")), 1, "the chosen price as it was")
+    local tt = H.Tooltip()
+    d.tooltip(BagRow(2589), "item:2589", tt)
+    H.assertTrue(tt:Has("AuctionDB - Market Value: No price"), "the chosen price has none")
+    H.assertTrue(tt:Has("Vendor Sell Price: 13c, shown instead"), "the one on the row")
+    H.assertNil(d.text(BagRow(2840), "item:2840"), "neither: nothing")
+end
+
+function tests.vendorPriceChosen_oneLine()
+    local w = H.load():login()
+    w:slash("source vendorsell")
+    local d = w:decorator()
+    H.assertEq(select("#", d.text(BagRow(2589), "item:2589")), 1, "not dimmed")
+    local tt = H.Tooltip()
+    d.tooltip(BagRow(2770), "item:2770", tt)
+    H.assertTrue(tt:Has("Vendor Sell Price: No price"))
+    H.assertNil(tt:Has("shown instead"))
+end
+
 function tests.subtext_itsTSMGroup_onEasyFindsRows()
     local w = H.load():login()
     local d = w:decorator()
