@@ -25,10 +25,10 @@ function tests.toc_requiresOnlyEasyFind_loadsBesideTSM()
     H.assertEq(f.SavedVariables, "EasyFindTSMDB", "SavedVariables")
 end
 
--- TradeSkillMaster's own toc lists retail, Mists, TBC and Era; never Forever.
+-- TradeSkillMaster's own toc lists retail, Mists, TBC, Era and, since 4.15, Forever.
 function tests.toc_interfaceLines_areTSMsClients()
     local f = H.Toc()
-    H.assertEq(f.Interface, "120105, 50504, 20506, 11509", "Interface")
+    H.assertEq(f.Interface, "120105, 50504, 20506, 11509, 16001", "Interface")
 end
 
 function tests.easyFindApi_isFoundForTheFieldChecks()
