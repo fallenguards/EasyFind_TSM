@@ -3,6 +3,7 @@
 ## Notes: TradeSkillMaster's groups, prices and crafting queue in EasyFind's search bar: type @tsm for your groups; every item shows its TSM price. Requires TradeSkillMaster.
 ## Author: justawower
 ## Version: 1.0.0
+## X-Curse-Project-ID: 1815189
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
 ## Category: UI
