@@ -52,6 +52,9 @@ function tests.registers_extensionProviderAndDecorator()
     H.assertEq(#p.options, 2, "two switches on its filter row")
     local d = w:decorator()
     H.assertTrue(d and d.id == "tsm" and d.slot == "price", "the row decorator, price slot")
+    -- @tsm alone listed every priced item row (Forever, no groups, 2026-11-18).
+    H.assertEq(d.browse and d.browse({ itemID = 3857, category = "fishing" }), false,
+        "an empty @tsm lists none of EasyFind's item rows")
     H.assertEq(table.concat(w.api.bad, "; "), "", "every field one EasyFind knows, of its type")
 end
 

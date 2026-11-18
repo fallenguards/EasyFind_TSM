@@ -435,10 +435,13 @@ local function RowMenu(row, link)
 end
 
 -- Every item row in EasyFind: the price at its right, its group under
--- its name, its TSM group on its menu.
+-- its name, its TSM group on its menu. It shares @tsm with the provider:
+-- with nothing typed the scope lists the groups and the queue, none of
+-- EasyFind's item rows (every priced bag, bank and fishing row showed).
 local function HookRows()
     API.RegisterRowDecorator({ id = KEY, slot = "price", label = L["DECOR_LABEL"],
-                               text = RowText, subtext = RowSubtext, tooltip = RowTooltip, menu = RowMenu })
+                               text = RowText, subtext = RowSubtext, tooltip = RowTooltip, menu = RowMenu,
+                               browse = function() return false end })
 end
 
 -- ==== settings ==============================================================
