@@ -1,4 +1,4 @@
-## Interface: 120105, 50504, 20506, 11509, 16001
+## Interface: 120107, 120105, 50504, 20506, 11509, 16001
 ## Title: EasyFind [TSM]
 ## Notes: TradeSkillMaster's groups, prices and crafting queue in EasyFind's search bar: type @tsm for your groups; every item shows its TSM price. Requires TradeSkillMaster.
 ## Author: justawower
