@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.1] - 2026-11-23
+
+- Marked up to date for WoW 12.1.7, so the game no longer lists it as out of date there.
+
 ## [1.0.0] - 2026-11-18
 
 - Search your TradeSkillMaster groups and the items in them from EasyFind's search bar, by name or a short form (bs, jc, lw, mats). `@tsm` lists your groups and crafting queue.
